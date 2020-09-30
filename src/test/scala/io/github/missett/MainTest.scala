@@ -7,12 +7,12 @@ class MainTest extends FlatSpec with Matchers with TryValues with EitherValues {
 
   it should "return the same state when there are no more balloons and the user Inflates" in {
     val init = State(List.empty[Balloon], 0)
-    Main.transition(init, Inflate) should equal (init)
+    Main.transition(init, Inflate) should equal ((init, Main.log("FINISHED")))
   }
 
   it should "return the same state when there are no more balloons and the user Banks" in {
     val init = State(List.empty[Balloon], 0)
-    Main.transition(init, Bank) should equal (init)
+    Main.transition(init, Bank) should equal ((init, Main.log("FINISHED")))
   }
 
   it should "increase the score by the number of inflations and then progress to the next balloon when the user Banks" in {
@@ -22,7 +22,7 @@ class MainTest extends FlatSpec with Matchers with TryValues with EitherValues {
     val state = State(balloons, 0)
     val output = Main.transition(state, Bank)
 
-    output should equal (State(List(second), first.inflations))
+    output should equal ((State(List(second), first.inflations), Main.log("BANKED")))
   }
 
   it should "progress to the next balloon without increasing the score when the user Inflates and the balloon bursts" in {
@@ -32,7 +32,7 @@ class MainTest extends FlatSpec with Matchers with TryValues with EitherValues {
     val state = State(balloons, 0)
     val output = Main.transition(state, Inflate)
 
-    output should equal (State(List(second), state.score))
+    output should equal ((State(List(second), state.score), Main.log("BURST")))
   }
 
   behavior of "parseBalloonsConfig"
@@ -42,12 +42,12 @@ class MainTest extends FlatSpec with Matchers with TryValues with EitherValues {
   }
 
   it should "return a failure if any of the tokens is not an int" in {
-    val failure = "bad input detected, got the following failures - Failure(java.lang.NumberFormatException: For input string: \"foo\")"
+    val failure = "could not understand your balloons, got the following failures - Failure(java.lang.NumberFormatException: For input string: \"foo\")"
     Main.parseBalloonConfig("1 foo 3 4").left.value.getMessage should equal (failure)
   }
 
   it should "coalesce multiple failures into one failure" in {
-    val failure = "bad input detected, got the following failures - Failure(java.lang.NumberFormatException: For input string: \"foo\"), Failure(java.lang.NumberFormatException: For input string: \"bar\")"
+    val failure = "could not understand your balloons, got the following failures - Failure(java.lang.NumberFormatException: For input string: \"foo\"), Failure(java.lang.NumberFormatException: For input string: \"bar\")"
     Main.parseBalloonConfig("1 foo 3 bar").left.value.getMessage should equal (failure)
   }
 
@@ -69,12 +69,6 @@ class MainTest extends FlatSpec with Matchers with TryValues with EitherValues {
   }
 
   it should "return a Left with an error when the user enters a value that cannot be parsed" in {
-    Main.parseUserAction("foo").left.value.getMessage should equal ("bad input detected, please enter one of [inflate, bank]")
-  }
-
-  behavior of "act"
-
-  it should "do something" in {
-
+    Main.parseUserAction("foo").left.value.getMessage should equal ("could not understand your choice of action, please enter one of [inflate, bank]")
   }
 }

@@ -11,22 +11,29 @@ case object Bank extends UserAction
 
 case class State(balloons: List[Balloon], score: Int)
 
+
 object Main extends App {
-  def transition(state: State, action: UserAction): State = state.balloons match {
+  type StateTransitionLog = List[String]
+
+  // we could easily just use printOutput inline with the state transition logic but
+  // this allows us to keep it nice and pure, and we can also test the logging
+  def log(line: String, logs: StateTransitionLog = List.empty): List[String] =
+    line :: logs
+
+  def transition(state: State, action: UserAction): (State, StateTransitionLog) = state.balloons match {
     case balloon :: tail => action match {
       case Inflate =>
         val updated = balloon.copy(inflations = balloon.inflations + 1)
 
         if (updated.inflations > updated.max) {
-          printOutput("BURST")
-          State(tail, state.score)
+          (State(tail, state.score), log("BURST"))
         } else {
-          State(updated :: tail, state.score)
+          (State(updated :: tail, state.score), log("CONTINUE"))
         }
       case Bank =>
-        State(tail, state.score + balloon.inflations)
+        (State(tail, state.score + balloon.inflations), log("BANKED"))
     }
-    case _ => state
+    case _ => (state, log("FINISHED"))
   }
 
   // if any token is bad then the entire input fails, normally would use something like cats .sequence op or maybe Validated
@@ -44,13 +51,16 @@ object Main extends App {
 
   def getInput: Either[Throwable, String] = Right(StdIn.readLine(">>> "))
 
-  def printOutput(output: String): Either[Throwable, Unit] = Right(println(s">>> $output"))
+  def printOutput(output: String): Either[Throwable, Unit] = Right(println(s"<<< $output"))
 
   def runInflationLoop(state: State): Either[Throwable, State] = for {
-    actionInput  <- getInput
-    action       <- parseUserAction(actionInput)
-    updatedState <- Right(transition(state, action))
-    thing        <- updatedState.balloons match {
+    actionInput       <- getInput
+    action            <- parseUserAction(actionInput)
+    transitionOutcome <- Right(transition(state, action))
+    updatedState      <- Right(transitionOutcome._1)
+    updatedLogs       <- Right(transitionOutcome._2)
+    _                 <- printOutput(updatedLogs.mkString("\n"))
+    thing             <- updatedState.balloons match {
       case _ :: _ => runInflationLoop(updatedState)
       case _      => Right(updatedState)
     }
